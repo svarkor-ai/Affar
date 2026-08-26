@@ -1,0 +1,8 @@
+# Affär — exact pins only (vm106 build gate rejects >= ranges and the
+# uvicorn[standard] extra; see svarkor-ai/hotell requirements for the pattern)
+fastapi==0.141.1
+uvicorn==0.52.4
+sqlalchemy==2.0.52
+pydantic==2.13.4
+bcrypt==5.0.0
+python-jose==3.5.0

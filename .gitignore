@@ -3,6 +3,5 @@ __pycache__/
 affar.db
 affar.db-shm
 affar.db-wal
-dist/
 node_modules/
 .pytest_cache/
