@@ -138,6 +138,13 @@ def confirm_order(db: Session, order_id: int) -> Order:
 
     order.status = "confirmed"
     order.updated_at = datetime.now(UTC)
+
+    # C21 rev-3: every confirmed order immediately gets its DeliveryTrack +
+    # first 'placed' event, created in THIS transaction (atomic with confirm).
+    from app.services.tracking import create_track_for_order
+
+    create_track_for_order(db, order.id)
+
     db.commit()
     db.refresh(order)
     return order
