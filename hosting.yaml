@@ -1,0 +1,12 @@
+{
+  "_comment": [
+    "vm106 hosting config — strict JSON, no yaml. Commit at repo root.",
+    "type=service: runs the FastAPI backend (run.py) which binds $PORT,",
+    "hosting the API. Frontend is a Vite SPA served by the backend (built to dist/)"
+  ],
+  "name": "affar",
+  "type": "service",
+  "root": "apps/affar",
+  "exec": "run.py",
+  "port": 8110
+}
