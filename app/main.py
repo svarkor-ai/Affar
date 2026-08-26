@@ -13,9 +13,12 @@ one-line change.
 
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 import app.config as _cfg
 from app.database import get_session_cm, init_db
@@ -45,6 +48,14 @@ ROUTES.append(_customers_router.router)
 ROUTES.append(_purchase_router.router)
 ROUTES.append(_suppliers_router.router)
 ROUTES.append(_tracking_router.router)
+
+
+# Built SPA frontend (Vite output), relative to this module so the mount works
+# regardless of the process CWD (pytest runs from the repo root; the hosting
+# layer runs run.py from the repo root too). R1 SPA-mount (MC 697.1).
+DIST_DIR = Path(__file__).resolve().parent.parent / "dist"
+DIST_INDEX = DIST_DIR / "index.html"
+DIST_ASSETS = DIST_DIR / "assets"
 
 
 @asynccontextmanager
@@ -80,5 +91,30 @@ def create_app() -> FastAPI:
 
     for router in ROUTES:
         app.include_router(router)
+
+    # R1 SPA-mount (MC 697.1): serve the built Vite frontend from dist/. The
+    # API routers above are registered FIRST, so /api/* and /openapi.json are
+    # matched before the SPA assets/catch-all below and are never shadowed.
+    if DIST_ASSETS.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(DIST_ASSETS)), name="spa-assets")
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def _spa_catchall(full_path: str) -> FileResponse:
+            """Serve index.html for every non-API, non-asset path.
+
+            Lets the SPA handle client-side routing on refresh/deep-link
+            (e.g. /orders/123) while leaving JSON API routes untouched.
+            """
+            # Let browsers fetch real files that live in dist/ if added later
+            # (favicon, robots.txt, etc.); anything unknown falls through to the
+            # SPA entry so a refresh on a client-side route still renders.
+            candidate = (DIST_DIR / full_path).resolve()
+            if (
+                candidate.is_file()
+                and candidate.is_relative_to(DIST_DIR.resolve())
+                and candidate != DIST_INDEX
+            ):
+                return FileResponse(candidate)
+            return FileResponse(DIST_INDEX)
 
     return app

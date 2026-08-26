@@ -96,3 +96,57 @@ def test_run_py_reads_PORT_env():
 
 
 from fastapi.testclient import TestClient  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# MC 697.1 (R1 SPA-mount): create_app() serves the built dist/ SPA with a
+# catch-all so client-side routing works, while /api/* stays untouched.
+# ---------------------------------------------------------------------------
+
+def test_spa_index_served_at_root():
+    app = create_app()
+    with TestClient(app) as client:
+        r = client.get("/")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/html")
+        assert '<div id="root">' in r.text
+
+
+def test_spa_catchall_serves_index_for_client_route():
+    # React Router paths that are not real backend routes must still return
+    # index.html so client-side routing works on refresh/deep-link.
+    app = create_app()
+    with TestClient(app) as client:
+        r = client.get("/orders/123")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/html")
+
+
+def test_spa_static_asset_served():
+    import os
+    assets_dir = os.path.join(os.path.dirname(__file__), "..", "dist", "assets")
+    names = sorted(os.listdir(assets_dir))
+    assert names, "dist/assets is empty — build the SPA before this test"
+    asset = f"/assets/{names[0]}"
+    app = create_app()
+    with TestClient(app) as client:
+        r = client.get(asset)
+        assert r.status_code == 200
+
+
+def test_spa_mount_does_not_swallow_api_routes():
+    # The catch-all must not shadow the JSON API — /api/* must still hit the
+    # routers (an unauthenticated /me returns 401, not index.html).
+    app = create_app()
+    with TestClient(app) as client:
+        r = client.get("/api/auth/me")
+        assert r.status_code == 401
+        assert "text/html" not in r.headers.get("content-type", "")
+
+
+def test_spa_mount_does_not_swallow_openapi():
+    app = create_app()
+    with TestClient(app) as client:
+        r = client.get("/openapi.json")
+        assert r.status_code == 200
+        assert "paths" in r.json()
