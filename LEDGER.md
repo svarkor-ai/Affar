@@ -39,3 +39,6 @@ publik auto-lane.
 
 **Status:** Fas 1 pågår (plan → arkitektur → DA-granskning). Repot svarkor-ai/Affar är
 tomt — bygger från noll.
+
+## Fas 2b + tracking-write klar (2026-08-26)
+C1-config hard-fail, customers-modul, React/Vite-frontend, hosting.yaml (8110), tracking write-side C21. 133 pytest grona, E2E verifierat live. Nasta: publicering vm106 (fas 2c) kraver GitHub-remote + reconciler-lane.
