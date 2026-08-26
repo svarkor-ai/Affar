@@ -31,6 +31,7 @@ from app.routers import items as _items_router  # noqa: E402
 from app.routers import orders as _orders_router  # noqa: E402
 from app.routers import invoices as _invoices_router  # noqa: E402
 from app.routers import payments as _payments_router  # noqa: E402
+from app.routers import customers as _customers_router  # noqa: E402
 from app.routers import purchase as _purchase_router  # noqa: E402
 from app.routers import suppliers as _suppliers_router  # noqa: E402
 from app.routers import tracking as _tracking_router  # noqa: E402
@@ -40,6 +41,7 @@ ROUTES.append(_items_router.router)
 ROUTES.append(_orders_router.router)
 ROUTES.append(_invoices_router.router)
 ROUTES.append(_payments_router.router)
+ROUTES.append(_customers_router.router)
 ROUTES.append(_purchase_router.router)
 ROUTES.append(_suppliers_router.router)
 ROUTES.append(_tracking_router.router)
