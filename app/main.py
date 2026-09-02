@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 import app.config as _cfg
 from app.database import get_session_cm, init_db
+from app.demo_guard import DemoWriteGuard
 from app.seed import seed_if_empty
 
 # Ordered router list (C3) — inspected by the gate. Append new routers here.
@@ -88,6 +89,12 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # MC 707.2 G3: the app is published on a public URL — throttle mutating
+    # requests per visitor (token bucket, hotells/bibliotek demo_guard pattern).
+    # Added AFTER CORS so CORS stays the outermost middleware; reads are never
+    # throttled (hotell app/main.py MC 2034.2 pattern).
+    app.add_middleware(DemoWriteGuard)
 
     for router in ROUTES:
         app.include_router(router)
