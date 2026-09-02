@@ -32,6 +32,9 @@ DEFAULT_PORT = 8110
 # $STATE_DIRECTORY=/var/lib/<service> for units with StateDirectory=.
 _SECRET_KEY_FILE = "secret.key"
 
+# Name of the sqlite database file inside the StateDirectory (MC 707.2 G1).
+_DB_FILE = "affar.db"
+
 # Local (non-systemd) state fallback so `python run.py` still works when there
 # is no StateDirectory (kept under $HOME, never inside the repo tree).
 _LOCAL_STATE_DIR = os.path.join(
@@ -68,6 +71,29 @@ def state_key_path(env: dict[str, str] | None = None) -> str:
     env = os.environ if env is None else env
     base = env.get("STATE_DIRECTORY") or _LOCAL_STATE_DIR
     return os.path.join(base, _SECRET_KEY_FILE)
+
+
+def state_dir_base(env: dict[str, str] | None = None) -> str:
+    """Return the writable state base dir ($STATE_DIRECTORY or local fallback)."""
+    env = os.environ if env is None else env
+    return env.get("STATE_DIRECTORY") or _LOCAL_STATE_DIR
+
+
+def state_db_url(env: dict[str, str] | None = None) -> str:
+    """Return the sqlite DATABASE_URL for the state-dir database (MC 707.2 G1).
+
+    The vm106 service unit runs with ProtectSystem=strict (read-only repo
+    tree), so the DB must live under the writable StateDirectory, never in
+    the repo (hotell server.py pattern, MC 1923). Fallback for local dev
+    without $STATE_DIRECTORY is the same ``$HOME/.local/state/affar`` dir the
+    secret key uses — still never the repo tree.
+    """
+    return "sqlite:///" + os.path.join(state_dir_base(env), _DB_FILE)
+
+
+def ensure_state_db_dir(env: dict[str, str] | None = None) -> None:
+    """Create the state directory the sqlite file will live in (idempotent)."""
+    os.makedirs(state_dir_base(env), exist_ok=True)
 
 
 def provision_secret(env: dict[str, str] | None = None) -> str:
@@ -120,6 +146,13 @@ def main() -> None:
     # imported (config.py hard-fails at import without it, I6). The key lives
     # in the StateDirectory and is never committed.
     os.environ["AFFAR_SECRET_KEY"] = provision_secret()
+
+    # MC 707.2 G1: the DB must never be written inside the repo tree (the
+    # vm106 unit is ProtectSystem=strict, read-only). Default AFFAR_DATABASE_URL
+    # to the state-dir sqlite file BEFORE app.config is imported (it reads
+    # DATABASE_URL once at import); an operator-set value wins (setdefault).
+    ensure_state_db_dir()
+    os.environ.setdefault("AFFAR_DATABASE_URL", state_db_url())
 
     from app.main import create_app
 

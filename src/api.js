@@ -9,7 +9,20 @@
 // renders user data it was not asked to show.
 // ============================================================
 
-const BASE = '/api'
+// MC 707.2 G2 — prefix-säker BASE. Baked "/api" would resolve to the site
+// root and miss the /affar/ prefix behind the public reverse proxy. A base
+// with no leading slash resolves against the CURRENT PAGE URL (e.g.
+// sibbamala.com/affar/ + "api/..." = sibbamala.com/affar/api/...), so the
+// SPA never requests anything outside its own prefix. Hash routes (#/...) do
+// not affect the base. Tests override window.location for path-accuracy.
+const BASE = 'api'
+
+function apiUrl(path) {
+  const base = (typeof window !== 'undefined' && window.location
+    ? window.location.href
+    : 'file:///')
+  return new URL(BASE + path, base).href
+}
 
 async function request(path, { token, method = 'GET', body } = {}) {
   const headers = { Accept: 'application/json' }
@@ -18,7 +31,7 @@ async function request(path, { token, method = 'GET', body } = {}) {
 
   let res
   try {
-    res = await fetch(`${BASE}${path}`, {
+    res = await fetch(apiUrl(path), {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,

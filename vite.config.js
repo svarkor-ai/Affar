@@ -6,6 +6,12 @@ import react from '@vitejs/plugin-react'
 // (default 8000). Production is served statically behind nginx which proxies /api
 // to the same FastAPI service.
 export default defineConfig({
+  // MC 707.2 G2: the SPA is served by the FastAPI backend, which also
+  // mounts under an optional AFFAR_ROOT_PATH prefix (e.g. /affar). Relative
+  // asset URLs ("./assets/...") resolve under whatever prefix the page was
+  // loaded from, so one build works at root AND under any prefix — no baked
+  // "/assets" absolute URLs that would 404 outside the root.
+  base: './',
   plugins: [react()],
   server: {
     port: 5173,
