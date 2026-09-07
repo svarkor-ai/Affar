@@ -35,6 +35,13 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Ogiltiga användaruppgifter",
         )
+    # MC 1120.1: deactivated users may not authenticate. 403 distinguishes a
+    # valid-but-disabled account from a bad password (401) for the admin UI.
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Kontot är avaktiverat",
+        )
     token = create_access_token(user.id, user.role)
     return TokenResponse(
         access_token=token,

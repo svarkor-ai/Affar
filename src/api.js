@@ -123,3 +123,8 @@ export function setPurchaseStatus(token, id, status) { return request('/purchase
 // The ONLY tracking route is the public GET /api/tracking/{tracking_id}.
 // The backend exposes no create-delivery-track and no staff track surface.
 export function track(trackingId) { return request('/tracking/' + trackingId) }
+
+// ---------- admin users (MC 1120.1) — admin-role only ----------
+export function listAdminUsers(token) { return request('/admin/users', { token }) }
+export function createAdminUser(token, user) { return request('/admin/users', { token, method: 'POST', body: user }) }
+export function updateAdminUser(token, id, patch) { return request('/admin/users/' + id, { token, method: 'PATCH', body: patch }) }

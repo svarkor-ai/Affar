@@ -7,7 +7,7 @@ const TOKEN_KEY = 'affar.token'
 // Mirrors the architecture's coarse `require_role` gates; this is presentational
 // only — the backend is the real authority (C25).
 const PERMS = {
-  admin: ['orders', 'invoices', 'payments', 'items', 'customers', 'suppliers', 'purchase'],
+  admin: ['admin-users', 'orders', 'invoices', 'payments', 'items', 'customers', 'suppliers', 'purchase'],
   sales: ['orders', 'items', 'customers', 'payments'],
   finance: ['invoices', 'payments', 'items', 'customers'],
   procurement: ['purchase', 'suppliers', 'items'],

@@ -6,6 +6,7 @@ import { useAuth } from '../auth.context.jsx'
 // public lookup, always visible.
 const NAV = [
   { key: 'track', label: 'Kundspårning', href: '#/track', cap: null },
+  { key: 'admin-users', label: 'Användare', href: '#/admin-users', cap: 'admin-users' },
   { key: 'orders', label: 'Order', href: '#/orders', cap: 'orders' },
   { key: 'invoices', label: 'Fakturor', href: '#/invoices', cap: 'invoices' },
   { key: 'payments', label: 'Betalningar', href: '#/payments', cap: 'payments' },
