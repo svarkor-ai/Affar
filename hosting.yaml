@@ -2,11 +2,35 @@
   "_comment": [
     "vm106 hosting config — strict JSON, no yaml. Commit at repo root.",
     "type=service: runs the FastAPI backend (run.py) which binds $PORT,",
-    "hosting the API. Frontend is a Vite SPA served by the backend (built to dist/)"
+    "hosting the API. Frontend is a Vite SPA served by the backend (built to dist/)",
+    "MC affar-host: 'exclude' EXTENDS mirror.py's DEFAULT_SERVICE_EXCLUDE (mirror.py:182-183,",
+    "'!` negations are last-match-wins). The defaults throw away /run.py and dist/**,",
+    "which would leave apps/affar empty in the monorepo -> vm106 REFUSED app. These",
+    "'!` negatives restore the served files, and the positives re-exclude dev cruft.",
+    "Verified with mirror.resolve_spec()+resolve_subset(): served = run.py + app/** + dist/**",
+    "+ requirements.txt, no src/ / root index.html / package.json / tests."
   ],
   "name": "affar",
   "type": "service",
   "root": "apps/affar",
   "exec": "run.py",
-  "port": 8110
+  "port": 8110,
+  "mirror": {
+    "exclude": [
+      "!run.py",
+      "!app/**",
+      "!dist/**",
+      "!requirements.txt",
+      "src/**",
+      "/index.html",
+      "vite.config.js",
+      "mock-server.mjs",
+      "LEDGER.md",
+      "package.json",
+      "package-lock.json",
+      "tests/**",
+      "node_modules/**"
+    ],
+    "cachebust": "all"
+  }
 }
