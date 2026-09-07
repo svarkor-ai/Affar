@@ -39,6 +39,7 @@ from app.routers import customers as _customers_router  # noqa: E402
 from app.routers import purchase as _purchase_router  # noqa: E402
 from app.routers import suppliers as _suppliers_router  # noqa: E402
 from app.routers import tracking as _tracking_router  # noqa: E402
+from app.routers import admin_users as _admin_users_router  # noqa: E402
 
 ROUTES.append(_auth_router.router)
 ROUTES.append(_items_router.router)
@@ -49,6 +50,7 @@ ROUTES.append(_customers_router.router)
 ROUTES.append(_purchase_router.router)
 ROUTES.append(_suppliers_router.router)
 ROUTES.append(_tracking_router.router)
+ROUTES.append(_admin_users_router.router)
 
 
 # Built SPA frontend (Vite output), relative to this module so the mount works
