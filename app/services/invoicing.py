@@ -24,6 +24,10 @@ from sqlalchemy.orm import Session
 from app.models import Invoice, InvoiceLine, Order
 from app.models.finance import INVOICE_STATUS
 
+# Lifecycle states ranked forward (draft -> issued -> paid). "cancelled" is
+# deliberately NOT ranked: it is terminal and never re-enterable (MC 1175.2).
+_INVOICE_LIFECYCLE: tuple[str, ...] = ("draft", "issued", "paid")
+
 # Staff who issue and manage invoices. Payments/reconcile share this set (C17).
 INVOICE_ROLES = ["admin", "finance"]
 
@@ -116,14 +120,26 @@ def update_status(db: Session, invoice_id: int, new_status: str) -> Invoice:
     """
     invoice = get_invoice_or_404(db, invoice_id)
 
+    # MC 1175.2: "cancel" is makulering, not a lifecycle move — route it out.
+    if new_status == "cancel":
+        from app.services.invoice_edit import cancel_invoice
+
+        return cancel_invoice(db, invoice_id)
+
     if new_status not in INVOICE_STATUS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown invoice status {new_status!r}; must be one of {INVOICE_STATUS}",
         )
 
-    order = list(INVOICE_STATUS).index(new_status)
-    current = list(INVOICE_STATUS).index(invoice.status)
+    if invoice.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=f"Invoice {invoice_id} is cancelled; it cannot be {new_status!r}",
+        )
+
+    order = list(_INVOICE_LIFECYCLE).index(new_status)
+    current = list(_INVOICE_LIFECYCLE).index(invoice.status)
     if order < current:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

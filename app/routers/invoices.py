@@ -3,7 +3,11 @@
     POST   /api/orders/{id}/invoice  -> InvoiceOut   [admin, finance]
     GET    /api/invoices             -> list[InvoiceOut]
     GET    /api/invoices/{id}        -> InvoiceOut (with lines + payments)
-    PATCH  /api/invoices/{id}/status {status} -> InvoiceOut
+    PATCH  /api/invoices/{id}          InvoicePatch -> InvoiceOut  [admin, finance]
+    PATCH  /api/invoices/{id}/status {status} -> InvoiceOut   (+ "cancel" = makulera)
+
+MC 1175.2: an issued (not yet paid) invoice is line-editable — the wire
+carries {item_id?, description?, qty} only, prices stay server-owned (C14).
 
 This surface only projects ORM rows onto InvoiceOut — it never returns raw ORM
 objects. Issue (create from confirmed order) and status transitions live in the
@@ -19,7 +23,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_role
 from app.database import get_session
 from app.models import Invoice
-from app.schemas.invoice import InvoiceOut, InvoiceStatusIn
+from app.schemas.invoice import InvoiceOut, InvoicePatch, InvoiceStatusIn
 
 from app.services import invoicing as svc
 
@@ -51,6 +55,23 @@ def get_invoice(
     _auth=Depends(require_role(svc.INVOICE_ROLES)),
 ) -> InvoiceOut:
     invoice = svc.get_invoice_or_404(db, invoice_id)
+    return _invoice_to_out(invoice)
+
+
+@router.patch("/invoices/{invoice_id}", response_model=InvoiceOut)
+def patch_invoice(
+    invoice_id: int,
+    body: InvoicePatch,
+    db: Session = Depends(get_session),
+    _auth=Depends(require_role(svc.INVOICE_ROLES)),
+) -> InvoiceOut:
+    """Replace the line set of a NOT-YET-PAID invoice (MC 1175.2).
+
+    Prices never come from the client (C14): they carry over per item from
+    the old server-owned lines, else the item's catalog price."""
+    from app.services import invoice_edit
+
+    invoice = invoice_edit.replace_invoice_lines(db, invoice_id, body.lines)
     return _invoice_to_out(invoice)
 
 
