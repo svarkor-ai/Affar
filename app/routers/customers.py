@@ -4,6 +4,7 @@
     GET  /api/customers  -> list[CustomerOut]
     GET  /api/customers/{id} -> CustomerOut
     PUT  /api/customers/{id} CustomerIn -> CustomerOut
+    PATCH /api/customers/{id}/active ActivePatch -> CustomerOut  (MC 1175.5)
 
 All customer-endpoint write+list routes are role-gated to the C9 staff set —
 the customer role uses the tracking surface, it does not manage the master
@@ -16,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_role
 from app.database import get_session
 from app.schemas.customer import CustomerIn, CustomerOut
+from app.schemas.masterdata import ActivePatch
 
 from app.services import customer as customer_service
 
@@ -64,6 +66,19 @@ def update_customer(
     return CustomerOut(**customer_to_dict(c))
 
 
+@router.patch("/{customer_id}/active", response_model=CustomerOut)
+def patch_customer_active(
+    customer_id: int,
+    body: ActivePatch,
+    db: Session = Depends(get_session),
+    _auth=Depends(require_role(CUSTOMER_ROLES)),
+) -> CustomerOut:
+    """Activate/deactivate a customer (MC 1175.5). A deactivated customer can
+    not take NEW orders (410 in services.orders); history is never touched."""
+    c = customer_service.set_active(db, customer_id, body.is_active)
+    return CustomerOut(**customer_to_dict(c))
+
+
 def customer_to_dict(c) -> dict:
     """Project an ORM Customer onto the CustomerOut field set (C23 — no bare ORM)."""
     return {
@@ -72,5 +87,6 @@ def customer_to_dict(c) -> dict:
         "email": c.email,
         "phone": c.phone,
         "address": c.address,
+        "is_active": c.is_active,
         "created_at": c.created_at,
     }

@@ -4,6 +4,7 @@
     GET  /api/suppliers  -> list[SupplierOut]
     GET  /api/suppliers/{id} -> SupplierOut
     PUT  /api/suppliers/{id} SupplierIn -> SupplierOut
+    PATCH /api/suppliers/{id}/active ActivePatch -> SupplierOut  (MC 1175.5)
 
 All supplier endpoints are role-gated to the C12 set — the customer role
 never touches suppliers. Returns schema objects (C23), never raw ORM.
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_role
 from app.database import get_session
+from app.schemas.masterdata import ActivePatch
 from app.schemas.supplier import SupplierIn, SupplierOut
 
 from app.services import supplier as supplier_service
@@ -63,6 +65,20 @@ def update_supplier(
     return SupplierOut(**supplier_to_dict(s))
 
 
+@router.patch("/{supplier_id}/active", response_model=SupplierOut)
+def patch_supplier_active(
+    supplier_id: int,
+    body: ActivePatch,
+    db: Session = Depends(get_session),
+    _auth=Depends(require_role(SUPPLIER_ROLES)),
+) -> SupplierOut:
+    """Activate/deactivate a supplier (MC 1175.5). A deactivated supplier can
+    not take NEW purchase orders (410 in services.purchase); history is never
+    touched."""
+    s = supplier_service.set_active(db, supplier_id, body.is_active)
+    return SupplierOut(**supplier_to_dict(s))
+
+
 def supplier_to_dict(s) -> dict:
     """Project an ORM Supplier onto the SupplierOut field set (C23 — no bare ORM)."""
     return {
@@ -72,4 +88,5 @@ def supplier_to_dict(s) -> dict:
         "phone": s.phone,
         "address": s.address,
         "payment_terms": s.payment_terms,
+        "is_active": s.is_active,
     }

@@ -4,6 +4,7 @@
     GET  /api/items?active=1   -> list[ItemOut]
     GET  /api/items/{id}       -> ItemOut
     PUT  /api/items/{id}       ItemIn -> ItemOut
+    PATCH /api/items/{id}/active  ActivePatch -> ItemOut   (MC 1175.5)
 
 All item endpoints are role-gated to the C8 set — the customer role never
 touches the internal catalog. ``qty_on_hand`` is NEVER mutated here; that is
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.auth import require_role
 from app.database import get_session
 from app.schemas.item import ItemIn, ItemOut
+from app.schemas.masterdata import ActivePatch
 
 from app.services import catalog  # internal service — owns qty_on_hand
 
@@ -67,6 +69,20 @@ def update_item(
     return ItemOut(**catalog_item_to_dict(item))
 
 
+@router.patch("/{item_id}/active", response_model=ItemOut)
+def patch_item_active(
+    item_id: int,
+    body: ActivePatch,
+    db: Session = Depends(get_session),
+    _auth=Depends(require_role(ITEM_ROLES)),
+) -> ItemOut:
+    """Activate/deactivate an article (MC 1175.5). Deactivated articles drop
+    out of ``?active=1`` listings (the create-form picker source) while the
+    row, price history and stock stay intact."""
+    item = catalog.set_active(db, item_id, body.is_active)
+    return ItemOut(**catalog_item_to_dict(item))
+
+
 def catalog_item_to_dict(item) -> dict:
     """Project an ORM Item onto the ItemOut field set (avoids bare ORM exposure)."""
     return {
@@ -76,5 +92,8 @@ def catalog_item_to_dict(item) -> dict:
         "description": item.description,
         "unit_price": item.unit_price,
         "qty_on_hand": item.qty_on_hand,
+        # C8: the catalog's activation column is named `active`; it is
+        # presented on the wire under the 1175.5 unified name `is_active`.
         "active": item.active,
+        "is_active": item.active,
     }

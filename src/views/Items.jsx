@@ -16,11 +16,12 @@ export default function Items() {
 
   const canEdit = user && ['admin', 'sales', 'procurement'].includes(user.role)
 
+  // MC 1175.5: visa även avaktiverade artiklar — annars går de inte att återaktivera.
   const reload = useCallback(() => {
     setLoading(true)
     setError(null)
     api
-      .listItems(token, { active: 1 })
+      .listItems(token, { active: 0 })
       .then((data) => setRows(data || []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -65,12 +66,28 @@ export default function Items() {
     }
   }
 
+  // MC 1175.5 — avaktivering/återaktivering (flaggan `active`, ActivePatch-ytan)
+  async function onToggleActive(r) {
+    try {
+      await api.setItemActive(token, r.id, !r.active)
+      setNotice(r.active ? `Artikeln ${r.sku} avaktiverades.` : `Artikeln ${r.sku} aktiverades.`)
+      reload()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const columns = [
     { key: 'sku', label: 'Artikelnr', render: (r) => <span className="mono">{r.sku}</span> },
     { key: 'name', label: 'Namn' },
     { key: 'unit_price', label: 'Pris', align: 'num', render: (r) => <Money value={r.unit_price} /> },
     { key: 'qty_on_hand', label: 'Lager', align: 'num' },
-    { key: 'active', label: 'Aktiv', render: (r) => (r.active ? 'Ja' : 'Nej') },
+    {
+      key: 'active', label: 'Status', render: (r) =>
+        r.active
+          ? <span className="badge badge-paid">Aktiv</span>
+          : <span className="badge badge-draft">Avaktiverad</span>,
+    },
   ]
 
   return (
@@ -92,6 +109,11 @@ export default function Items() {
         emptyText="Inga artiklar ännu."
         ariaLabel="Artikellista"
         keyOf={(r) => r.id}
+        actions={canEdit ? (r) => (
+          <button type="button" className="btn btn-mini btn-ghost" onClick={() => onToggleActive(r)}>
+            {r.active ? 'Avaktivera' : 'Aktivera'}
+          </button>
+        ) : null}
       />
 
       {canEdit && (

@@ -48,12 +48,29 @@ def create_customer(db: Session, payload: "CustomerIn") -> Customer:
 
 
 def update_customer(db: Session, customer_id: int, payload: "CustomerIn") -> Customer:
-    """Apply CustomerIn fields to the customer with *customer_id* (C9)."""
+    """Apply CustomerIn fields to the customer with *customer_id* (C9).
+
+    MC 1175.5: no ``is_active`` here — the flag is flipped ONLY via
+    ``set_active`` (PATCH /active), never by an overwrite-PUT.
+    """
     customer = get_customer_or_404(db, customer_id)
     customer.name = payload.name
     customer.email = payload.email
     customer.phone = payload.phone
     customer.address = payload.address
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+
+def set_active(db: Session, customer_id: int, is_active: bool) -> Customer:
+    """Activate/deactivate the customer with *customer_id* (MC 1175.5).
+
+    Deactivation blocks NEW orders (services.orders.create_order 410s an
+    inactive customer); existing orders/invoices are never touched.
+    """
+    customer = get_customer_or_404(db, customer_id)
+    customer.is_active = is_active
     db.commit()
     db.refresh(customer)
     return customer
