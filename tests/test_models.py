@@ -137,7 +137,7 @@ def test_closed_enum_sets():
     assert "postnord" in CARRIER
     # Order status closed set
     from app.models.order import ORDER_STATUS
-    assert set(ORDER_STATUS) == {"draft", "confirmed", "shipped", "delivered"}
+    assert set(ORDER_STATUS) == {"draft", "confirmed", "shipped", "delivered", "cancelled"}
     # Tracking event status closed set
     assert set(TRACK_EVENT) >= {"placed", "delivered"}
 

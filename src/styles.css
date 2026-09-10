@@ -242,6 +242,7 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .badge-confirmed, .badge-issued, .badge-ordered, .badge-in-warehouse, .badge-in-transit, .badge-out-for-delivery { background: var(--c-brand-soft); color: var(--c-brand); }
 .badge-shipped { background: var(--c-warn-bg); color: var(--c-warn); }
 .badge-delivered, .badge-paid, .badge-received { background: var(--c-success-bg); color: var(--c-success); }
+.badge-cancelled { background: var(--c-danger-bg); color: var(--c-danger); }
 
 /* ---------- states ---------- */
 .loading, .empty, .notice { padding: var(--sp-5); border-radius: var(--r-md); margin: var(--sp-3) 0; }
