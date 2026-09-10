@@ -53,6 +53,15 @@ def create_order(db: Session, payload) -> Order:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Customer not found",
         )
+    # MC 1175.5: an AVAKTIVERAD customer cannot take new orders — the flag
+    # gates NEW transactions only; historical rows stay untouched (410, the
+    # resource exists but is deactivated; PUT cannot revive it — only the
+    # /active PATCH flips the flag).
+    if not customer.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Customer is deactivated",
+        )
 
     order = Order(customer_id=customer.id, status="draft")
 
@@ -85,6 +94,93 @@ def create_order(db: Session, payload) -> Order:
     db.commit()
     db.refresh(order)
     return order
+
+
+def replace_draft_lines(db: Session, order_id: int, lines) -> Order:
+    """MC 1175.1 — replace the whole line set of a DRAFT order.
+
+    ``lines`` carries only {item_id, qty} (C13 rev-2). Every line is
+    re-snapshotted from the Item's current price (C14), so editing after a
+    price change is safe: the client can never supply a price. Only a draft
+    is editable — any other status is a 409, cancelled is a 410. The whole
+    replacement is one transaction: an unknown item id rolls the edit back.
+    """
+    order = get_order_or_404(db, order_id)
+    _require_draft_editable(order, "edit")
+
+    # Resolve items once — O(n) lookups, uniform 404 for any unknown id.
+    item_ids = [line.item_id for line in lines]
+    item_map = {it.id: it for it in db.query(Item).filter(Item.id.in_(item_ids)).all()}
+    new_lines = []
+    for line in lines:
+        item = item_map.get(line.item_id)
+        if item is None:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Item {line.item_id} not found",
+            )
+        snapshot = item.unit_price
+        subtotal = (Decimal(line.qty) * snapshot).quantize(Decimal("0.01"))
+        new_lines.append(
+            OrderLine(
+                item_id=item.id,
+                qty=line.qty,
+                unit_price=snapshot,
+                subtotal=subtotal,
+            )
+        )
+
+    # delete-orphan cascade drops the old rows when the collection is cleared.
+    order.lines.clear()
+    order.lines.extend(new_lines)
+    order.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def cancel_order(db: Session, order_id: int) -> Order:
+    """MC 1175.1 — cancel a DRAFT order (terminal; no stock was ever out).
+
+    Draft-only: a confirmed order already consumed stock and may already have
+    an invoice, so cancelling it needs a restock flow that does not exist yet
+    (409 says exactly that). A cancelled order is terminal (409 on retry).
+    """
+    order = get_order_or_404(db, order_id)
+    if order.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Order is already cancelled",
+        )
+    if order.status != "draft":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Order is {order.status!r}; only a draft can be cancelled "
+                "(a confirmed order needs a restock, not a cancel)"
+            ),
+        )
+    order.status = "cancelled"
+    order.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def _require_draft_editable(order: Order, verb: str) -> None:
+    """Guard: *verb* is allowed on a draft only; other statuses explain why."""
+    if order.status == "draft":
+        return
+    if order.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=f"Order is cancelled; it cannot be {verb}ed",
+        )
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"Order is {order.status!r}; only a draft can be {verb}ed",
+    )
 
 
 def list_orders(db: Session) -> list[Order]:
