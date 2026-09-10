@@ -7,11 +7,17 @@ objects, never raw ORM objects.
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SupplierIn(BaseModel):
-    """POST/PUT /api/suppliers body (C12)."""
+    """POST/PUT /api/suppliers body (C12).
+
+    ``is_active`` is NOT accepted here (MC 1175.5): activation has its own
+    PATCH surface (ActivePatch) — a plain PUT can never flip the flag.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=200)
     email: Optional[str] = Field(default=None, max_length=200)
@@ -29,3 +35,5 @@ class SupplierOut(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     payment_terms: Optional[str] = None
+    # MC 1175.5: deactivation flag (True default = every pre-existing row).
+    is_active: bool = True

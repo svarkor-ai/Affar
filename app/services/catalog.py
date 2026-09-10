@@ -58,13 +58,32 @@ def create_item(db: Session, payload) -> Item:
 
 
 def update_item(db: Session, item_id: int, payload) -> Item:
-    """Apply ItemIn fields to the item with *item_id* and return it (C8)."""
+    """Apply ItemIn fields to the item with *item_id* and return it (C8).
+
+    MC 1175.5: the PUT payload no longer carries ``active`` — activation is
+    flipped ONLY via ``set_active`` (the PATCH /active surface), so an
+    overwrite-PUT can never silently re-activate a deactivated article.
+    """
     item = get_item_or_404(db, item_id)
     item.sku = payload.sku
     item.name = payload.name
     item.description = payload.description
     item.unit_price = payload.unit_price
     item.qty_on_hand = payload.qty_on_hand
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def set_active(db: Session, item_id: int, is_active: bool) -> Item:
+    """Activate/deactivate the item with *item_id* (MC 1175.5).
+
+    Sets the SAME column ``GET /api/items?active=1`` filters on, so a
+    deactivated article disappears from the create-form pickers while the row,
+    its price history and its stock stay intact (deactivation, not deletion).
+    """
+    item = get_item_or_404(db, item_id)
+    item.active = is_active
     db.commit()
     db.refresh(item)
     return item

@@ -13,7 +13,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
-ORDER_STATUS: tuple[str, ...] = ("draft", "confirmed", "shipped", "delivered")
+# MC 1175.1: "cancelled" is the terminal cancel state (draft-only entry, see
+# orders_service.cancel_order). ORDER_STATUS stays the closed set on the wire.
+ORDER_STATUS: tuple[str, ...] = ("draft", "confirmed", "shipped", "delivered", "cancelled")
 
 
 class Order(Base):

@@ -79,18 +79,24 @@ export function listItems(token, { active = 1 } = {}) {
 export function getItem(token, id) { return request('/items/' + id, { token }) }
 export function createItem(token, item) { return request('/items', { token, method: 'POST', body: item }) }
 export function updateItem(token, id, item) { return request('/items/' + id, { token, method: 'PUT', body: item }) }
+// MC 1175.5 — avaktivering (flaggan heter `active` på C8-ytan, ActivePatch på wire)
+export function setItemActive(token, id, is_active) { return request('/items/' + id + '/active', { token, method: 'PATCH', body: { is_active } }) }
 
 // ---------- customers (C10) ----------
 export function listCustomers(token) { return request('/customers', { token }) }
 export function getCustomer(token, id) { return request('/customers/' + id, { token }) }
 export function createCustomer(token, customer) { return request('/customers', { token, method: 'POST', body: customer }) }
 export function updateCustomer(token, id, customer) { return request('/customers/' + id, { token, method: 'PUT', body: customer }) }
+// MC 1175.5 — avaktivering (ny order till avaktiverad kund -> 410)
+export function setCustomerActive(token, id, is_active) { return request('/customers/' + id + '/active', { token, method: 'PATCH', body: { is_active } }) }
 
 // ---------- suppliers (C12) ----------
 export function listSuppliers(token) { return request('/suppliers', { token }) }
 export function getSupplier(token, id) { return request('/suppliers/' + id, { token }) }
 export function createSupplier(token, supplier) { return request('/suppliers', { token, method: 'POST', body: supplier }) }
 export function updateSupplier(token, id, supplier) { return request('/suppliers/' + id, { token, method: 'PUT', body: supplier }) }
+// MC 1175.5 — avaktivering (ny PO till avaktiverad leverantör -> 410)
+export function setSupplierActive(token, id, is_active) { return request('/suppliers/' + id + '/active', { token, method: 'PATCH', body: { is_active } }) }
 
 // ---------- orders (C14) — OrderIn carries NO price (server derives) ----------
 export function createOrder(token, orderIn) { return request('/orders', { token, method: 'POST', body: orderIn }) }
@@ -101,23 +107,45 @@ export function getOrder(token, id) { return request('/orders/' + id, { token })
 // shipped/delivered transition endpoint — orders are matched to an
 // invoice, and delivery tracking is recorded elsewhere (teddy's card).
 export function confirmOrder(token, id) { return request('/orders/' + id + '/confirm', { token, method: 'POST' }) }
+// MC 1175.1 — draft edits. Replace the whole line set (remove/add/change qty,
+// {item_id, qty} only — the server re-snapshots prices, C14) and cancel a
+// draft. Both are draft-only server-side (409/410 otherwise) and [admin,sales].
+export function updateOrderLines(token, id, lines) { return request('/orders/' + id, { token, method: 'PATCH', body: { lines } }) }
+export function cancelOrder(token, id) { return request('/orders/' + id + '/status', { token, method: 'PATCH', body: { status: 'cancel' } }) }
 
 // ---------- invoicing (C16) ----------
 export function createInvoiceFromOrder(token, orderId) { return request('/orders/' + orderId + '/invoice', { token, method: 'POST' }) }
 export function listInvoices(token) { return request('/invoices', { token }) }
 export function getInvoice(token, id) { return request('/invoices/' + id, { token }) }
+// MC 1175.2 — invoice rättning + makulering. Replace the whole line set
+// ({item_id?, description?, qty} only — prices stay server-owned, C14); only a
+// draft/issued invoice is editable server-side (paid -> 409, cancelled -> 410).
+// Makulering goes through the status patch with "cancel" and requires the
+// invoice to be fully refunded first (net payments == 0).
+export function updateInvoiceLines(token, id, lines) { return request('/invoices/' + id, { token, method: 'PATCH', body: { lines } }) }
+export function cancelInvoice(token, id) { return request('/invoices/' + id + '/status', { token, method: 'PATCH', body: { status: 'cancel' } }) }
 export function setInvoiceStatus(token, id, status) { return request('/invoices/' + id + '/status', { token, method: 'PATCH', body: { status } }) }
 
 // ---------- payments (C17) ----------
 export function recordPayment(token, invoiceId, paymentIn) { return request('/invoices/' + invoiceId + '/payment', { token, method: 'POST', body: paymentIn }) }
 export function reconcile(token, invoiceId) { return request('/invoices/' + invoiceId + '/reconcile', { token, method: 'POST' }) }
 export function listPayments(token) { return request('/payments', { token }) }
+// MC 1175.3 — makulering av felaktig betalning. Append-only: servern lägger
+// en NEGATIV rad kopplad till originalet (cancels_payment_id), aldrig raderat.
+export function cancelPayment(token, paymentId) { return request('/payments/' + paymentId + '/cancel', { token, method: 'POST' }) }
 
 // ---------- purchase (C19) ----------
 export function createPurchaseOrder(token, poIn) { return request('/purchase-orders', { token, method: 'POST', body: poIn }) }
 export function listPurchaseOrders(token) { return request('/purchase-orders', { token }) }
 export function getPurchaseOrder(token, id) { return request('/purchase-orders/' + id, { token }) }
 export function setPurchaseStatus(token, id, status) { return request('/purchase-orders/' + id + '/status', { token, method: 'PATCH', body: { status } }) }
+// MC 1175.4 — purchase rättbara. Replace the whole draft line set
+// ({item_id, qty, unit_cost} — cost is wire-supplied purchase-side, C18; the
+// server recomputes line_total). Only a draft is editable (ordered -> 409,
+// cancelled -> 410). Makulering goes through the status patch with "cancel"
+// (draft/ordered only; received is 409, cancelled terminal).
+export function updatePurchaseOrderLines(token, id, lines) { return request('/purchase-orders/' + id, { token, method: 'PATCH', body: { lines } }) }
+export function cancelPurchaseOrder(token, id) { return request('/purchase-orders/' + id + '/status', { token, method: 'PATCH', body: { status: 'cancel' } }) }
 
 // ---------- tracking (C21 rev-2 / C20) ----------
 // The ONLY tracking route is the public GET /api/tracking/{tracking_id}.

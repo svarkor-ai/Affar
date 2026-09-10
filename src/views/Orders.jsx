@@ -16,9 +16,10 @@ function formatWhen(iso) {
 // POST /orders/{id}/confirm (C14 rev-2). No shipped/delivered transition
 // endpoint exists on orders, so the UI offers exactly the confirm action.
 
-// Orders (C14). Create order with customer + lines (item_id + qty —
-// NO price; the server derives line prices and the total, C23/C14).
-// Inline status transitions on confirmed+ orders.
+// Orders (C14; MC 1175.1 edits). Create order with customer + lines
+// (item_id + qty — NO price; the server derives line prices and the total,
+// C23/C14). Drafts are inline-editable (lines/qty) and cancellable;
+// confirmed+ orders keep only their lifecycle actions.
 export default function Orders() {
   const { token, user } = useAuth()
   const [rows, setRows] = useState([])
@@ -39,7 +40,7 @@ export default function Orders() {
   // options for create form
   useEffect(() => {
     if (!canEdit) return
-    api.listCustomers(token).then((d) => setCustomers(d || [])).catch(() => {})
+    api.listCustomers(token).then((d) => setCustomers((d || []).filter((c) => c.is_active !== false))).catch(() => {})
     api.listItems(token, { active: 1 }).then((d) => setItems(d || [])).catch(() => {})
   }, [canEdit, token])
 
@@ -49,11 +50,43 @@ export default function Orders() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
 
+  // MC 1175.1 — inline draft edit (one order at a time)
+  const [editId, setEditId] = useState(null)
+  const [editLines, setEditLines] = useState([])
+  const [editError, setEditError] = useState(null)
+  const [editSaving, setEditSaving] = useState(false)
+
   function updateLine(i, field, value) {
     setLines(lines.map((ln, idx) => (idx === i ? { ...ln, [field]: value } : ln)))
   }
   function addLine() { setLines([...lines, { item_id: '', qty: 1 }]) }
   function removeLine(i) { setLines(lines.length > 1 ? lines.filter((_, idx) => idx !== i) : [{ item_id: '', qty: 1 }]) }
+
+  function startEdit(order) {
+    setEditError(null)
+    setEditId(order.id)
+    setEditLines(order.lines.map((ln) => ({ item_id: ln.item_id, qty: ln.qty })))
+  }
+  function cancelEditForm() { setEditId(null); setEditLines([]); setEditError(null) }
+  function updateEditLine(i, field, value) {
+    setEditLines(editLines.map((ln, idx) => (idx === i ? { ...ln, [field]: value } : ln)))
+  }
+  function addEditLine() { setEditLines([...editLines, { item_id: '', qty: 1 }]) }
+  function removeEditLine(i) { setEditLines(editLines.length > 1 ? editLines.filter((_, idx) => idx !== i) : [{ item_id: '', qty: 1 }]) }
+
+  async function saveEdit() {
+    const clean = editLines.filter((ln) => ln.item_id)
+    if (clean.length === 0) { setEditError('Lägg till minst en orderrad med vald artikel.'); return }
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      // Replace the whole line set; the server re-snapshots prices (C14).
+      await api.updateOrderLines(token, editId, clean.map((ln) => ({ item_id: Number(ln.item_id), qty: Number(ln.qty) || 1 })))
+      setNotice(`Ordern ${editId} uppdaterades.`)
+      cancelEditForm()
+      reload()
+    } catch (err) { setEditError(err.message) } finally { setEditSaving(false) }
+  }
 
   async function onCreate(e) {
     e.preventDefault()
@@ -79,6 +112,18 @@ export default function Orders() {
     try {
       await api.confirmOrder(token, order.id)
       setNotice(`Ordern ${order.id} bekräftades.`)
+      reload()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function cancel(order) {
+    if (!window.confirm(`Avbryt order ${order.id}? Detta går inte att ångra.`)) return
+    try {
+      await api.cancelOrder(token, order.id)
+      setNotice(`Ordern ${order.id} avbröts.`)
+      if (editId === order.id) cancelEditForm()
       reload()
     } catch (err) {
       setError(err.message)
@@ -126,9 +171,19 @@ export default function Orders() {
         keyOf={(r) => r.id}
         actions={(r) => (
           <span className="row-actions">
+            {canEdit && r.status === 'draft' && editId !== r.id && (
+              <button type="button" className="btn btn-mini" onClick={() => startEdit(r)}>
+                Redigera
+              </button>
+            )}
             {r.status === 'draft' && (
               <button type="button" className="btn btn-mini" onClick={() => confirm(r)}>
                 Bekräfta
+              </button>
+            )}
+            {canEdit && r.status === 'draft' && (
+              <button type="button" className="btn btn-mini btn-ghost" onClick={() => cancel(r)}>
+                Avbryt
               </button>
             )}
             {r.status === 'confirmed' && (
@@ -139,6 +194,55 @@ export default function Orders() {
           </span>
         )}
       />
+
+      {editId !== null && (
+        <div className="card" role="group" aria-label={`Redigera order ${editId}`}>
+          <h3>Redigera order #{editId}</h3>
+          <p className="muted small">
+            Endast utkast kan redigeras. Priset sätts om av systemet från aktuella artikelpriser.
+          </p>
+          {editError && <p className="notice-error" role="alert">{editError}</p>}
+          <div className="order-lines">
+            {editLines.map((ln, i) => (
+              <div className="order-line" key={i}>
+                <div className="field line" style={{ flexGrow: 2 }}>
+                  <label htmlFor={`edit-line-item-${i}`}>Artikel</label>
+                  <select
+                    id={`edit-line-item-${i}`}
+                    value={ln.item_id}
+                    onChange={(e) => updateEditLine(i, 'item_id', e.target.value)}
+                  >
+                    <option value="">— välj artikel —</option>
+                    {items.map((it) => (
+                      <option key={it.id} value={it.id}>{it.sku} — {it.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field line" style={{ flexBasis: '80px' }}>
+                  <label htmlFor={`edit-line-qty-${i}`}>Antal</label>
+                  <input
+                    id={`edit-line-qty-${i}`}
+                    type="number"
+                    min="1"
+                    value={ln.qty}
+                    onChange={(e) => updateEditLine(i, 'qty', e.target.value)}
+                  />
+                </div>
+                <button type="button" className="btn btn-mini btn-ghost" onClick={() => removeEditLine(i)} aria-label="Ta bort rad">
+                  Ta bort
+                </button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-mini" onClick={addEditLine}>+ Lägg till rad</button>
+          </div>
+          <span className="row-actions">
+            <button type="button" className="btn btn-primary" onClick={saveEdit} disabled={editSaving}>
+              {editSaving ? 'Sparar…' : 'Spara ändringar'}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={cancelEditForm}>Avbryt redigering</button>
+          </span>
+        </div>
+      )}
 
       {canEdit && (
         <form className="card" onSubmit={onCreate} noValidate>

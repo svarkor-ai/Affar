@@ -49,13 +49,30 @@ def create_supplier(db: Session, payload: "SupplierIn") -> Supplier:
 
 
 def update_supplier(db: Session, supplier_id: int, payload: "SupplierIn") -> Supplier:
-    """Apply SupplierIn fields to the supplier with *supplier_id* (C12)."""
+    """Apply SupplierIn fields to the supplier with *supplier_id* (C12).
+
+    MC 1175.5: no ``is_active`` here — the flag is flipped ONLY via
+    ``set_active`` (PATCH /active), never by an overwrite-PUT.
+    """
     supplier = get_supplier_or_404(db, supplier_id)
     supplier.name = payload.name
     supplier.email = payload.email
     supplier.phone = payload.phone
     supplier.address = payload.address
     supplier.payment_terms = payload.payment_terms
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+def set_active(db: Session, supplier_id: int, is_active: bool) -> Supplier:
+    """Activate/deactivate the supplier with *supplier_id* (MC 1175.5).
+
+    Deactivation blocks NEW purchase orders (services.purchase 410s an
+    inactive supplier); existing POs are never touched.
+    """
+    supplier = get_supplier_or_404(db, supplier_id)
+    supplier.is_active = is_active
     db.commit()
     db.refresh(supplier)
     return supplier

@@ -49,11 +49,28 @@ export default function Customers() {
     }
   }
 
+  // MC 1175.5 — avaktivering/återaktivering (nya ordrar nekas 410, historik bevaras)
+  async function onToggleActive(r) {
+    try {
+      await api.setCustomerActive(token, r.id, !r.is_active)
+      setNotice(r.is_active ? `Kunden ${r.name} avaktiverades.` : `Kunden ${r.name} aktiverades.`)
+      reload()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const columns = [
     { key: 'name', label: 'Namn' },
     { key: 'email', label: 'E-post', render: (r) => r.email || <span className="muted">—</span> },
     { key: 'phone', label: 'Telefon', render: (r) => r.phone || <span className="muted">—</span> },
     { key: 'org_no', label: 'Org.nr', render: (r) => r.org_no || <span className="muted">—</span> },
+    {
+      key: 'is_active', label: 'Status', render: (r) =>
+        r.is_active
+          ? <span className="badge badge-paid">Aktiv</span>
+          : <span className="badge badge-draft">Avaktiverad</span>,
+    },
   ]
 
   return (
@@ -75,6 +92,11 @@ export default function Customers() {
         emptyText="Inga kunder ännu."
         ariaLabel="Kundlista"
         keyOf={(r) => r.id}
+        actions={canEdit ? (r) => (
+          <button type="button" className="btn btn-mini btn-ghost" onClick={() => onToggleActive(r)}>
+            {r.is_active ? 'Avaktivera' : 'Aktivera'}
+          </button>
+        ) : null}
       />
 
       {canEdit && (

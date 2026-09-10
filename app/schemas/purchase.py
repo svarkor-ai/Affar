@@ -9,11 +9,19 @@ never a raw ORM object.
 
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PurchaseOrderLineIn(BaseModel):
-    """A single line on the wire when creating a PO (C19)."""
+    """A single line on the wire when creating a PO (C19).
+
+    extra="forbid" (MC 1175.4): a PATCH body is validated against this schema
+    too, so a client-supplied status/total on a line is a 422, never stored.
+    unit_cost stays wire-supplied on the purchase side (C18 — negotiated per
+    supplier) but bounded exactly as at creation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     item_id: int = Field(gt=0)
     qty: int = Field(gt=0)
@@ -49,6 +57,26 @@ class PurchaseOrderOut(BaseModel):
 
 
 class PurchaseOrderStatusIn(BaseModel):
-    """PATCH /api/purchase-orders/{id}/status body (C19)."""
+    """PATCH /api/purchase-orders/{id}/status body (C19).
+
+    MC 1175.4: ``cancel`` joins the accepted values — it is makulering, not a
+    lifecycle move, and is routed out in the service (never ranked in the
+    forward lifecycle). The service still owns the live transition rules.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     status: str = Field(min_length=1)
+
+
+class PurchaseOrderPatch(BaseModel):
+    """PATCH /api/purchase-orders/{id} body — MC 1175.4 draft line edit.
+
+    ``lines`` REPLACES the whole line set (remove/add/change qty/cost in one
+    call). Only a draft is editable server-side; line_total is recomputed
+    server-side, and ``extra="forbid"`` rejects any smuggled status/total.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    lines: list[PurchaseOrderLineIn] = Field(min_length=1)

@@ -34,3 +34,7 @@ class ItemOut(BaseModel):
     unit_price: Decimal = Field(max_digits=12, decimal_places=2)
     qty_on_hand: int
     active: bool = True
+    # MC 1175.5: unified activation name across items/customers/suppliers.
+    # C8 keeps `active` on the wire for backward compatibility — both carry
+    # the same value (see routers.items.catalog_item_to_dict).
+    is_active: bool = True

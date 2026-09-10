@@ -35,3 +35,5 @@ class PaymentOut(BaseModel):
     amount: Decimal = Field(max_digits=12, decimal_places=2)
     method: str
     paid_at: datetime
+    # MC 1175.3: non-null on a refund row — the id of the makulerad payment.
+    cancels_payment_id: Optional[int] = None

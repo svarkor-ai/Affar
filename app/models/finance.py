@@ -8,7 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
-INVOICE_STATUS: tuple[str, ...] = ("draft", "issued", "paid")
+# MC 1175.2: "cancelled" (makulering) is terminal and OUTSIDE the forward
+# lifecycle draft -> issued -> paid — the ordered transition check in
+# invoicing.update_status still only ranks the three lifecycle states.
+INVOICE_STATUS: tuple[str, ...] = ("draft", "issued", "paid", "cancelled")
 PAYMENT_METHODS: tuple[str, ...] = ("bank", "cash", "card")
 
 
@@ -63,11 +66,17 @@ class Payment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False)
+    # MC 1175.3: makulering appends a NEGATIVE refund row instead of deleting;
+    # amount < 0 <=> this row is a refund cancelling `cancels_payment_id`.
+    # Plain Integer (not a FK): sqlite cannot ALTER TABLE ADD CONSTRAINT and
+    # the schema (I1) has no migration for a self-FK — integrity is enforced
+    # in services.payment_edit (id lookup + 404, single-makulering guard).
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     method: Mapped[str] = mapped_column(String(20), nullable=False)
     paid_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
+    cancels_payment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="payments")
 

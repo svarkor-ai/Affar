@@ -19,7 +19,9 @@ from sqlalchemy.orm import Session
 from app.models import Item, PurchaseOrder, PurchaseOrderLine, Supplier
 from app.services.catalog import adjust_stock
 
-# Closed status set (C18) — the only values PATCH may set.
+# Closed lifecycle set (C18) — the only values PATCH may set through the
+# forward path. "cancelled" is deliberately absent (MC 1175.4): makulering is
+# routed to purchase_edit.cancel_po, never ranked here, never re-enterable.
 PO_STATUS: tuple[str, ...] = ("draft", "ordered", "received")
 
 
@@ -40,6 +42,14 @@ def _get_supplier_or_404(db: Session, supplier_id: int) -> Supplier:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Supplier not found",
+        )
+    # MC 1175.5: an avaktiverad supplier cannot take NEW purchase orders —
+    # same gate as create_po's supplier check, so PATCH-draft and create both
+    # refuse a deactivated supplier (410, mirrors the customer gate).
+    if not supplier.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Supplier is deactivated",
         )
     return supplier
 
@@ -93,6 +103,15 @@ def set_po_status(db: Session, po_id: int, new_status: str) -> PurchaseOrder:
     ``received`` is the only stock-affecting transition — it applies
     ``catalog.adjust_stock(db, item_id, +qty)`` per line (I2 single owner).
     """
+    po = get_po_or_404(db, po_id)
+
+    # MC 1175.4: "cancel" is makulering, not a lifecycle move — route it out
+    # (mirrors T2's invoice "cancel" routing).
+    if new_status == "cancel":
+        from app.services.purchase_edit import cancel_po
+
+        return cancel_po(db, po_id)
+
     if new_status not in PO_STATUS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -102,7 +121,20 @@ def set_po_status(db: Session, po_id: int, new_status: str) -> PurchaseOrder:
             ),
         )
 
-    po = get_po_or_404(db, po_id)
+    # MC 1175.4: cancelled is terminal — no lifecycle move in or out.
+    if po.status == "cancelled":
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=f"Purchase order {po_id} is cancelled; it cannot be {new_status!r}",
+        )
+
+    # MC 1175.4: draft -> ordered goes through the makulering-aware path in
+    # purchase_edit (set_po_status must never re-order a cancelled PO).
+    if new_status == "ordered" and po.status == "draft":
+        from app.services.purchase_edit import set_ordered
+
+        return set_ordered(db, po_id)
+
     if new_status == "received" and po.status != "received":
         for line in po.lines:
             _get_item_or_404(db, line.item_id)

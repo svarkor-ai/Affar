@@ -6,6 +6,7 @@ const KIND_CLASS = {
   confirmed: 'badge-confirmed',
   shipped: 'badge-shipped',
   delivered: 'badge-delivered',
+  cancelled: 'badge-cancelled',
   // invoice
   issued: 'badge-issued',
   paid: 'badge-paid',
