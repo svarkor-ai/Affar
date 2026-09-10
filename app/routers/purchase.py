@@ -3,11 +3,15 @@
     POST  /api/purchase-orders  PurchaseOrderIn -> POut   [admin, procurement]
     GET   /api/purchase-orders  -> list[POut]
     GET   /api/purchase-orders/{id} -> POut
+    PATCH /api/purchase-orders/{id} PurchaseOrderPatch -> POut   [admin, procurement]
     PATCH /api/purchase-orders/{id}/status {status} -> POut
 
 ``received`` PATCH performs stock-in via the purchase service (which calls the
 catalog `adjust_stock` — the single stock owner, I2). All surfaces return
 schema objects (C23), never raw ORM. Roles are [admin, procurement].
+MC 1175.4: drafts are line-editable (replace lines incl. unit_cost — C18 lets
+the purchase side supply cost) and a PO is makulerings-bar via the status
+PATCH with ``cancel`` (draft/ordered only; received is 409, cancelled 410).
 """
 
 from fastapi import APIRouter, Depends
@@ -19,6 +23,7 @@ from app.schemas.purchase import (
     PurchaseOrderIn,
     PurchaseOrderLineOut,
     PurchaseOrderOut,
+    PurchaseOrderPatch,
     PurchaseOrderStatusIn,
 )
 
@@ -55,6 +60,23 @@ def get_po(
     _auth=Depends(require_role(PURCHASE_ROLES)),
 ) -> PurchaseOrderOut:
     po = purchase_service.get_po_or_404(db, po_id)
+    return PurchaseOrderOut(**po_to_dict(po))
+
+
+@router.patch("/{po_id}", response_model=PurchaseOrderOut)
+def patch_po(
+    po_id: int,
+    body: PurchaseOrderPatch,
+    db: Session = Depends(get_session),
+    _auth=Depends(require_role(PURCHASE_ROLES)),
+) -> PurchaseOrderOut:
+    """Replace the line set of a DRAFT purchase order (MC 1175.4).
+
+    unit_cost is wire-supplied on this side (C18) but bounded by the schema;
+    line_total is recomputed server-side. Only draft is editable."""
+    from app.services import purchase_edit
+
+    po = purchase_edit.replace_po_lines(db, po_id, body.lines)
     return PurchaseOrderOut(**po_to_dict(po))
 
 

@@ -13,7 +13,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
-PO_STATUS: tuple[str, ...] = ("draft", "ordered", "received")
+# MC 1175.4: "cancelled" (makulering) is terminal and OUTSIDE the forward
+# lifecycle draft -> ordered -> received — set_po_status/set_ordered never
+# rank it; only purchase_edit.cancel_po enters it, and nothing leaves it.
+PO_STATUS: tuple[str, ...] = ("draft", "ordered", "received", "cancelled")
 
 
 class PurchaseOrder(Base):
