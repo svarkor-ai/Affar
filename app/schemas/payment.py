@@ -12,10 +12,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.models.finance import PAYMENT_METHODS
+from app.schemas.money import money_comma_validator
 
 
 class PaymentIn(BaseModel):
     """POST /api/invoices/{id}/payment body."""
+
+    # MC 1182.6: accept Swedish comma decimals ("10,50") on the wire.
+    _accept_comma_decimals = money_comma_validator("amount")
 
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     method: str = Field(

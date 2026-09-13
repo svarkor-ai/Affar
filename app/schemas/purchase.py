@@ -11,6 +11,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.money import money_comma_validator
+
 
 class PurchaseOrderLineIn(BaseModel):
     """A single line on the wire when creating a PO (C19).
@@ -22,6 +24,9 @@ class PurchaseOrderLineIn(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
+
+    # MC 1182.6: accept Swedish comma decimals ("10,50") on the wire.
+    _accept_comma_decimals = money_comma_validator("unit_cost")
 
     item_id: int = Field(gt=0)
     qty: int = Field(gt=0)

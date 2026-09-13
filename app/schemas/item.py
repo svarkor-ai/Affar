@@ -13,9 +13,14 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas.money import money_comma_validator
+
 
 class ItemIn(BaseModel):
     """POST/PUT /api/items body."""
+
+    # MC 1182.6: accept Swedish comma decimals ("10,50") on the wire.
+    _accept_comma_decimals = money_comma_validator("unit_price")
 
     sku: str = Field(min_length=1, max_length=50)
     name: str = Field(min_length=1, max_length=200)
