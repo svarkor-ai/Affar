@@ -11,11 +11,13 @@ import Customers from './views/Customers.jsx'
 import Suppliers from './views/Suppliers.jsx'
 import Purchase from './views/Purchase.jsx'
 import AdminUsers from './views/AdminUsers.jsx'
+import Dashboard from './views/Dashboard.jsx'
 
 // Map a route key -> { view, cap } (cap null = always reachable when
 // authed; gated view pushes to a fallback if the user lacks the cap).
 const ROUTES = {
   '': { view: Home, cap: null },
+  reports: { view: Dashboard, cap: null },
   track: { view: Track, cap: null },
   'admin-users': { view: AdminUsers, cap: 'admin-users' },
   orders: { view: Orders, cap: 'orders' },

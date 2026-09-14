@@ -281,6 +281,16 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .mt-4 { margin-top: var(--sp-4); }
 .mb-4 { margin-bottom: var(--sp-4); }
 
+/* ---------- dashboard (MC 1182.9) ---------- */
+.dash-section h3 { margin: 0 0 var(--sp-1); }
+.dash-bars { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.dash-bars li { display: grid; grid-template-columns: 5.5rem 1fr auto; align-items: center; gap: var(--sp-3); }
+.dash-bar-label { font-size: var(--fs-sm); color: var(--c-ink-soft); }
+.dash-bar-track { display: block; height: 12px; background: var(--c-surface-2, #eef1f5); border-radius: 6px; overflow: hidden; }
+.dash-bar-fill { display: block; height: 100%; background: var(--c-brand); border-radius: 6px; }
+.dash-bar-value { font-size: var(--fs-sm); }
+.dash-aging table { margin-top: var(--sp-3); }
+
 @media (max-width: 640px) {
   .page { padding: var(--sp-4); }
   .login-card { padding: var(--sp-5); }

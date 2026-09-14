@@ -5,6 +5,7 @@ import { useAuth } from '../auth.context.jsx'
 // routers (C4/C25) via `can()` from the auth context. `track` is the
 // public lookup, always visible.
 const NAV = [
+  { key: 'reports', label: 'Rapporter', href: '#/reports', cap: null },
   { key: 'track', label: 'Kundspårning', href: '#/track', cap: null },
   { key: 'admin-users', label: 'Användare', href: '#/admin-users', cap: 'admin-users' },
   { key: 'orders', label: 'Order', href: '#/orders', cap: 'orders' },

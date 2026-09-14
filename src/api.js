@@ -156,3 +156,9 @@ export function track(trackingId) { return request('/tracking/' + trackingId) }
 export function listAdminUsers(token) { return request('/admin/users', { token }) }
 export function createAdminUser(token, user) { return request('/admin/users', { token, method: 'POST', body: user }) }
 export function updateAdminUser(token, id, patch) { return request('/admin/users/' + id, { token, method: 'PATCH', body: patch }) }
+
+// ---------- reports (MC 1182.9) — read-only dashboard aggregations ----------
+// Sales/AR are [admin, finance]; stock is [admin, procurement] server-side.
+export function monthlySalesReport(token, months = 12) { return request('/reports/monthly-sales?months=' + months, { token }) }
+export function arAgingReport(token) { return request('/reports/ar-aging', { token }) }
+export function stockBalanceReport(token) { return request('/reports/stock-balance', { token }) }
