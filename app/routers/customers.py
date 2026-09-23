@@ -87,6 +87,7 @@ def customer_to_dict(c) -> dict:
         "email": c.email,
         "phone": c.phone,
         "address": c.address,
+        "org_no": c.org_no,
         "is_active": c.is_active,
         "created_at": c.created_at,
     }

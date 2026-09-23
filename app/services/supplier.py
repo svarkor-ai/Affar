@@ -40,6 +40,7 @@ def create_supplier(db: Session, payload: "SupplierIn") -> Supplier:
         email=payload.email,
         phone=payload.phone,
         address=payload.address,
+        contact=payload.contact,
         payment_terms=payload.payment_terms,
     )
     db.add(supplier)
@@ -59,6 +60,7 @@ def update_supplier(db: Session, supplier_id: int, payload: "SupplierIn") -> Sup
     supplier.email = payload.email
     supplier.phone = payload.phone
     supplier.address = payload.address
+    supplier.contact = payload.contact
     supplier.payment_terms = payload.payment_terms
     db.commit()
     db.refresh(supplier)

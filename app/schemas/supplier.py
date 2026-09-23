@@ -23,6 +23,8 @@ class SupplierIn(BaseModel):
     email: Optional[str] = Field(default=None, max_length=200)
     phone: Optional[str] = Field(default=None, max_length=50)
     address: Optional[str] = Field(default=None, max_length=500)
+    # MC 1349.2 (F5): the frontend sends contact — accept it on the wire.
+    contact: Optional[str] = Field(default=None, max_length=200)
     payment_terms: Optional[str] = Field(default=None, max_length=200)
 
 
@@ -34,6 +36,8 @@ class SupplierOut(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    # MC 1349.2 (F5): contact round-trips to the UI's "Kontakt" column.
+    contact: Optional[str] = None
     payment_terms: Optional[str] = None
     # MC 1175.5: deactivation flag (True default = every pre-existing row).
     is_active: bool = True

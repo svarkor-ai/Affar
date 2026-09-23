@@ -156,3 +156,25 @@ def test_allowed_roles_create_200():
             headers=_auth_header(role),
         )
         assert resp.status_code == 200, f"{role}: {resp.text}"
+
+
+# ---------------------------------------------------------------------------
+# MC 1349.2 (F5) — Suppliers.jsx sends contact; SupplierIn must accept it
+# ---------------------------------------------------------------------------
+
+def test_create_supplier_with_contact_roundtrips_f5():
+    """F5 regression: POST /api/suppliers with contact -> 200 and the field
+    round-trips through GET (the UI's Kontakt column can show data)."""
+    client = _make_app_client()
+    resp = client.post(
+        "/api/suppliers",
+        json={"name": "Kontakt AB", "contact": "Anna Leverantör"},
+        headers=_auth_header("procurement"),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["contact"] == "Anna Leverantör"
+
+    fetched = client.get(f"/api/suppliers/{body['id']}", headers=_auth_header("procurement"))
+    assert fetched.status_code == 200
+    assert fetched.json()["contact"] == "Anna Leverantör"

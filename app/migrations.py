@@ -23,6 +23,9 @@ STARTUP_MIGRATIONS: list[tuple[str, str, str]] = [
     ("customers", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
     ("suppliers", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
     ("payments", "cancels_payment_id", "INTEGER"),
+    # MC 1349.2 (F4/F5): contract-drift fields the frontend already sends.
+    ("customers", "org_no", "VARCHAR(50)"),
+    ("suppliers", "contact", "VARCHAR(200)"),
 ]
 
 

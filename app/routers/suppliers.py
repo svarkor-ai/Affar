@@ -87,6 +87,7 @@ def supplier_to_dict(s) -> dict:
         "email": s.email,
         "phone": s.phone,
         "address": s.address,
+        "contact": s.contact,
         "payment_terms": s.payment_terms,
         "is_active": s.is_active,
     }

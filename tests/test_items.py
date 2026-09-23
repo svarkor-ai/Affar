@@ -219,3 +219,27 @@ def test_allowed_role_create_200():
             headers=_auth_header(role),
         )
         assert resp.status_code == 200, f"{role}: {resp.text}"
+
+
+# ---------------------------------------------------------------------------
+# MC 1349.2 (F3) — Items.jsx contract drift: active=0 means "only inactive"
+# ---------------------------------------------------------------------------
+
+def test_list_items_no_active_param_returns_all_f3():
+    """F3 regression: the Items page must see ALL items when it sends no
+    active param (backend default), and active=1 must still filter."""
+    _seed_item(sku="F3-ACTIVE", active=True, qty_on_hand=1)
+    _seed_item(sku="F3-INACTIVE", active=False, qty_on_hand=1)
+    client = _make_app_client()
+
+    # No active param at all (what the fixed Items.jsx sends) -> both rows.
+    resp = client.get("/api/items", headers=_auth_header("sales"))
+    assert resp.status_code == 200
+    skus = {i["sku"] for i in resp.json()}
+    assert {"F3-ACTIVE", "F3-INACTIVE"} <= skus
+
+    # active=1 (what Orders/Invoices/Purchase send) -> active only.
+    resp_active = client.get("/api/items?active=1", headers=_auth_header("sales"))
+    assert resp_active.status_code == 200
+    active_skus = {i["sku"] for i in resp_active.json()}
+    assert "F3-ACTIVE" in active_skus and "F3-INACTIVE" not in active_skus

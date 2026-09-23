@@ -73,8 +73,12 @@ export function me(token) {
 }
 
 // ---------- items / catalog (C8) ----------
-export function listItems(token, { active = 1 } = {}) {
-  return request('/items?active=' + active, { token })
+// MC 1349.2 (F3): `active` is optional — when omitted the backend returns ALL
+// items (active + inactive). Never send active=0 by default: on the wire that
+// means "only inactive", which made the Items page look empty.
+export function listItems(token, { active } = {}) {
+  const qs = active === undefined ? '' : '?active=' + active
+  return request('/items' + qs, { token })
 }
 export function getItem(token, id) { return request('/items/' + id, { token }) }
 export function createItem(token, item) { return request('/items', { token, method: 'POST', body: item }) }

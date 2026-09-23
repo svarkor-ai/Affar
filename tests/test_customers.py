@@ -158,3 +158,25 @@ def test_allowed_roles_create_200():
             headers=_auth_header(role),
         )
         assert resp.status_code == 200, f"{role}: {resp.text}"
+
+
+# ---------------------------------------------------------------------------
+# MC 1349.2 (F4) — Customers.jsx sends org_no; CustomerIn must accept it
+# ---------------------------------------------------------------------------
+
+def test_create_customer_with_org_no_roundtrips_f4():
+    """F4 regression: POST /api/customers with org_no -> 200 and the field
+    round-trips through GET (the UI's Org.nr column can show data)."""
+    client = _make_app_client()
+    resp = client.post(
+        "/api/customers",
+        json={"name": "Org Kund AB", "org_no": "556789-1234"},
+        headers=_auth_header("admin"),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["org_no"] == "556789-1234"
+
+    fetched = client.get(f"/api/customers/{body['id']}", headers=_auth_header("admin"))
+    assert fetched.status_code == 200
+    assert fetched.json()["org_no"] == "556789-1234"

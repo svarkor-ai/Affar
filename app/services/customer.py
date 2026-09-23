@@ -40,6 +40,7 @@ def create_customer(db: Session, payload: "CustomerIn") -> Customer:
         email=payload.email,
         phone=payload.phone,
         address=payload.address,
+        org_no=payload.org_no,
     )
     db.add(customer)
     db.commit()
@@ -58,6 +59,7 @@ def update_customer(db: Session, customer_id: int, payload: "CustomerIn") -> Cus
     customer.email = payload.email
     customer.phone = payload.phone
     customer.address = payload.address
+    customer.org_no = payload.org_no
     db.commit()
     db.refresh(customer)
     return customer

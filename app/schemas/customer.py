@@ -25,6 +25,8 @@ class CustomerIn(BaseModel):
     email: Optional[str] = Field(default=None, max_length=255)
     phone: Optional[str] = Field(default=None, max_length=50)
     address: Optional[str] = Field(default=None, max_length=500)
+    # MC 1349.2 (F4): the frontend sends org_no — accept it on the wire.
+    org_no: Optional[str] = Field(default=None, max_length=50)
 
 
 class CustomerOut(BaseModel):
@@ -35,6 +37,8 @@ class CustomerOut(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    # MC 1349.2 (F4): org_no round-trips to the UI's "Org.nr" column.
+    org_no: Optional[str] = None
     # MC 1175.5: deactivation flag (True default = every pre-existing row).
     is_active: bool = True
     created_at: datetime

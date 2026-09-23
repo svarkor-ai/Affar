@@ -17,11 +17,13 @@ export default function Items() {
   const canEdit = user && ['admin', 'sales', 'procurement'].includes(user.role)
 
   // MC 1175.5: visa även avaktiverade artiklar — annars går de inte att återaktivera.
+  // MC 1349.2 (F3): no `active` param at all — the backend default returns ALL
+  // items. The old `active: 0` meant "only inactive" on the wire (empty list).
   const reload = useCallback(() => {
     setLoading(true)
     setError(null)
     api
-      .listItems(token, { active: 0 })
+      .listItems(token)
       .then((data) => setRows(data || []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
