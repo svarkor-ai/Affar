@@ -107,8 +107,16 @@ def get_session():
 
 
 def init_db() -> None:
-    """Create all tables defined in app/models (C2 hookup)."""
+    """Create all tables defined in app/models (C2 hookup).
+
+    After create_all, run the idempotent startup migration (MC 1323.1):
+    create_all does NOT add columns to pre-existing tables, so a pre-1175
+    live DB would otherwise crash on first query against current models.
+    """
     Base.metadata.create_all(get_engine())
+    from app.migrations import run_startup_migrations
+
+    run_startup_migrations()
 
 
 def drop_all() -> None:
