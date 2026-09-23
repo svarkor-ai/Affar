@@ -41,4 +41,7 @@ publik auto-lane.
 tomt — bygger från noll.
 
 ## Fas 2b + tracking-write klar (2026-08-26)
-C1-config hard-fail, customers-modul, React/Vite-frontend, hosting.yaml (8110), tracking write-side C21. 133 pytest grona, E2E verifierat live. Nasta: publicering vm106 (fas 2c) kraver GitHub-remote + reconciler-lane.
+C1-config hard-fail, customers-modul, React/Vite-frontend, hosting.yaml (8110), tracking write-side C21. 248 pytest grona (audit-verifierat 2026-09-23), E2E verifierat live. Nasta: publicering vm106 (fas 2c) kraver GitHub-remote + reconciler-lane.
+
+## Security + logic audit PASS (2026-09-23, MC 1325)
+Delegerad audit (2 subagenter) av master 709b319+cbd5a25: 0xP0/P1/P2. P3: publika demo-lösenord (intentionellt PoC), CORS default '*' (env-fix), saknad duplikat-invoice_no-test, LEDGER test-räknare stale (rättad här). 1323.1 startup-migration landad i master (cbd5a25) — mirror 7cdbf5b bar redan fixen. Evidens: /srv/workspace/affar-audit-20260923/.
