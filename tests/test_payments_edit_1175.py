@@ -135,17 +135,28 @@ def test_unknown_payment_404(client, seed_base):
 
 
 def test_partial_refund_keeps_paid(client, seed_base):
-    """Two payments cover the total; refunding one drops below -> issued."""
+    """Refund-adjusting flow (owner ruling 2026-09-24, F1 / MC 1349.1):
+    a NEW payment on an already-PAID invoice is now 409, so the refund flow is
+    cancel-FIRST: makulera the original (invoice falls back to issued), then
+    record the refund-adjusting payment, then re-pay to paid."""
     inv, pay = _paid_invoice(client, seed_base)  # 2000 covered by one pay
-    # add a second (overpayment), then makulera the first
+    # cancel the original first -> net 0, invoice back to issued
+    r = client.post(f"/api/payments/{pay['id']}/cancel", headers=_auth(client, "finance"))
+    assert r.status_code == 200
+    # record the refund-adjusting payment: net 500 of 2000 -> still unsettled
     p2 = client.post(f"/api/invoices/{inv['id']}/payment", headers=_auth(client, "finance"),
                      json={"amount": "500.00", "method": "cash"})
     assert p2.status_code == 200
-    r = client.post(f"/api/payments/{pay['id']}/cancel", headers=_auth(client, "finance"))
-    assert r.status_code == 200
     after = client.get(f"/api/invoices/{inv['id']}", headers=_auth(client, "finance")).json()
     # net now 500 of 2000 -> unsettled
     assert after["status"] == "issued"
+    # re-pay the remainder -> paid again
+    p3 = client.post(f"/api/invoices/{inv['id']}/payment", headers=_auth(client, "finance"),
+                     json={"amount": "1500.00", "method": "cash"})
+    assert p3.status_code == 200
+    final = client.get(f"/api/invoices/{inv['id']}", headers=_auth(client, "finance")).json()
+    assert final["status"] == "paid"
+    assert final["paid_at"] is not None
 
 
 def test_repay_after_refund_marks_paid(client, seed_base):
