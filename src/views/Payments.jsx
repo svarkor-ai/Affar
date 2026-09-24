@@ -33,7 +33,7 @@ export default function Payments() {
     },
     { key: 'method', label: 'Metod', render: (r) => (r.method || '—') },
     { key: 'amount', label: 'Belopp', align: 'num', render: (r) => <Money value={r.amount} /> },
-    { key: 'date', label: 'Datum', render: (r) => formatWhen(r.created_at || r.date) },
+    { key: 'date', label: 'Datum', render: (r) => formatWhen(r.paid_at) },
   ]
 
   return (
