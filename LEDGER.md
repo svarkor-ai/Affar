@@ -45,3 +45,13 @@ C1-config hard-fail, customers-modul, React/Vite-frontend, hosting.yaml (8110), 
 
 ## Security + logic audit PASS (2026-09-23, MC 1325)
 Delegerad audit (2 subagenter) av master 709b319+cbd5a25: 0xP0/P1/P2. P3: publika demo-lösenord (intentionellt PoC), CORS default '*' (env-fix), saknad duplikat-invoice_no-test, LEDGER test-räknare stale (rättad här). 1323.1 startup-migration landad i master (cbd5a25) — mirror 7cdbf5b bar redan fixen. Evidens: /srv/workspace/affar-audit-20260923/.
+
+## Full-function QA + F1/F6-fixar (2026-09-24, MC 1349/1350/1351)
+QA (UI + API E2E, 39 steg): PASS med findings. F3-F5 kontraktsdrift landade 2026-09-23
+(6c3e14d + 3fed96f, 251 pytest). F1: betalning mot redan betald faktura → 409 (ägarens
+beslut 2026-09-24, alternativ A); 1175.3 refund-flöde omskrivet till cancel-först
+(56b48c0). F6: Payments Datum-kolumnen läser paid_at (9de1c3e, dist byggd om). 252
+pytest gröna på merged master (orchestrator-verifierat). F2 klassad designval: PO
+re-receive är idempotent 200 (guard i purchase.py:138, ingen dubbel stock-in) — lämnas.
+Kvar: vm106-spegeln synkar fortfarande inte (live visar index-DnFNfO3g.js) — reconciler
+på vm106 behöver kick (ingen SSH-åtkomst från vm105). Evidens: /srv/workspace/affar-audit-20260923/.
