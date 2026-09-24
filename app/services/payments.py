@@ -45,6 +45,15 @@ def record_payment(
     """
     invoice = get_invoice_or_404(db, invoice_id)
 
+    # F1 (MC 1349.1): a NEW payment on an already-PAID invoice is rejected.
+    # Overpayment on an *Issued* invoice stays allowed (documented, I3).
+    if invoice.status == "paid":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Invoice {invoice_id} is already paid; "
+                   f"no further payment can be recorded",
+        )
+
     if method not in PAYMENT_METHODS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

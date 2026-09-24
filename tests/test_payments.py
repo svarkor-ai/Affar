@@ -134,6 +134,24 @@ def test_overfull_payment_marks_paid(client, seed_base):
     assert inv["status"] == "paid"
 
 
+def test_payment_on_already_paid_invoice_409(client, seed_base):
+    iid, total = _issued_invoice(client, seed_base)
+    first = client.post(
+        f"/api/invoices/{iid}/payment",
+        json={"amount": str(total), "method": "bank"},
+        headers=_auth(client, "finance"))
+    assert first.status_code == 200, first.text
+    # A NEW payment on an already-PAID invoice must be rejected (F1, MC 1349.1).
+    r = client.post(
+        f"/api/invoices/{iid}/payment",
+        json={"amount": "10.00", "method": "bank"},
+        headers=_auth(client, "finance"))
+    assert r.status_code == 409, r.text
+    # No extra payment row was recorded.
+    inv = client.get(f"/api/invoices/{iid}", headers=_auth(client, "finance")).json()
+    assert len(inv["payments"]) == 1
+
+
 def test_payment_invalid_amounts_422(client, seed_base):
     iid, _ = _issued_invoice(client, seed_base)
     # amount <= 0 rejected.
