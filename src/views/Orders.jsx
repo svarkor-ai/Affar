@@ -31,6 +31,27 @@ export default function Orders() {
   const [customers, setCustomers] = useState([])
   const [items, setItems] = useState([])
 
+  // MC 1369.4 — order_id -> invoice map so an already-invoiced order shows a
+  // "Fakturerad" marker instead of a Fakturera button that would just 409.
+  // Invoices GET is admin/finance-only: on failure (e.g. 403) fall back
+  // silently to the previous behaviour, never blank the page.
+  const [invoiceByOrder, setInvoiceByOrder] = useState({})
+  const loadInvoices = useCallback(() => {
+    let alive = true
+    api.listInvoices(token)
+      .then((d) => {
+        if (!alive) return
+        const map = {}
+        for (const inv of d || []) {
+          if (inv && inv.order_id != null) map[inv.order_id] = inv
+        }
+        setInvoiceByOrder(map)
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [token])
+  useEffect(() => loadInvoices(), [loadInvoices])
+
   const reload = useCallback(() => {
     setLoading(true)
     api.listOrders(token).then((d) => setRows(d || [])).catch((e) => setError(e.message)).finally(() => setLoading(false))
@@ -134,6 +155,7 @@ export default function Orders() {
     try {
       await api.createInvoiceFromOrder(token, order.id)
       setNotice(`Faktura skapades för order ${order.id}.`)
+      loadInvoices()
     } catch (err) {
       setError(err.message)
     }
@@ -186,11 +208,13 @@ export default function Orders() {
                 Avbryt
               </button>
             )}
-            {r.status === 'confirmed' && (
+            {r.status === 'confirmed' && (invoiceByOrder[r.id] ? (
+              <span className="muted">Fakturerad{invoiceByOrder[r.id].invoice_no ? ` (${invoiceByOrder[r.id].invoice_no})` : ''}</span>
+            ) : (
               <button type="button" className="btn btn-mini" onClick={() => makeInvoice(r)}>
                 Fakturera
               </button>
-            )}
+            ))}
           </span>
         )}
       />

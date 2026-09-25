@@ -2,6 +2,8 @@
 // Handles the four states every view needs: loading, empty, error,
 // success. `columns` = [{key, label, align:'num'|null, render(row)}].
 // Optional `actions` column via a render prop returning React nodes.
+// A row-action error does not replace the table: the notice renders ABOVE
+// the rows so the data stays visible (MC 1369.4).
 export default function DataTable({
   columns,
   rows,
@@ -15,15 +17,15 @@ export default function DataTable({
   if (loading) {
     return <p className="loading" role="status">Läser in…</p>
   }
-  if (error) {
-    return <p className="notice-error" role="alert">{error}</p>
-  }
+  const notice = error ? <p className="notice-error" role="alert">{error}</p> : null
   if (!rows || rows.length === 0) {
-    return <p className="empty">{emptyText}</p>
+    return notice || <p className="empty">{emptyText}</p>
   }
 
   return (
-    <div className="table-wrap">
+    <>
+      {notice}
+      <div className="table-wrap">
       <table className="data" aria-label={ariaLabel}>
         <thead>
           <tr>
@@ -47,5 +49,6 @@ export default function DataTable({
         </tbody>
       </table>
     </div>
+    </>
   )
 }
