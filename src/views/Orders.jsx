@@ -43,7 +43,9 @@ export default function Orders() {
         if (!alive) return
         const map = {}
         for (const inv of d || []) {
-          if (inv && inv.order_id != null) map[inv.order_id] = inv
+          // Skip cancelled invoices (makulera, PATCH /invoices/{id}/status):
+          // an order whose invoice was cancelled must offer Fakturera again.
+          if (inv && inv.order_id != null && inv.status !== 'cancelled') map[inv.order_id] = inv
         }
         setInvoiceByOrder(map)
       })
